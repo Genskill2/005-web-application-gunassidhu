@@ -18,8 +18,19 @@ def format_date(d):
 
 @bp.route("/search/<field>/<value>")
 def search(field, value):
+    conn = db.get_db()
+    cursor = conn.cursor()
+    oby = request.args.get("order_by", "id")
+    order = request.args.get("order", "asc")
+    print(oby)
+    if field=='tag':
+       st='''select s.id, s.name, s.bought, s.sold, a.name from pet s ,animal a, tag t ,tags_pets tb where t.name=? and t.id=tb.tag and s.id=tb.pet and s.species=a.id '''
+       cursor.execute(st,(value,))
+    pets=cursor.fetchall()
+    order='asc'
     # TBD
-    return ""
+    return render_template("search.html",pets=pets,field=field,value=value,order=order)
+
 
 @bp.route("/")
 def dashboard():
@@ -28,9 +39,9 @@ def dashboard():
     oby = request.args.get("order_by", "id") # TODO. This is currently not used. 
     order = request.args.get("order", "asc")
     if order == "asc":
-        cursor.execute(f"select p.id, p.name, p.bought, p.sold, s.name from pet p, animal s where p.species = s.id order by p.id")
+        cursor.execute(f"select p.id, p.name, p.bought, p.sold, s.name from pet p, animal s where p.species = s.id order by p.{oby}")
     else:
-        cursor.execute(f"select p.id, p.name, p.bought, p.sold, s.name from pet p, animal s where p.species = s.id order by p.id desc")
+        cursor.execute(f"select p.id, p.name, p.bought, p.sold, s.name from pet p, animal s where p.species = s.id order by p.{oby} desc")
     pets = cursor.fetchall()
     return render_template('index.html', pets = pets, order="desc" if order=="asc" else "asc")
 
@@ -74,10 +85,9 @@ def edit(pid):
     elif request.method == "POST":
         description = request.form.get('description')
         sold = request.form.get("sold")
+        sold=datetime.date.today()
+        cursor.execute("update pet set description=? where id=?;",(description,pid))
+        cursor.execute("update pet set sold=? where id=?;",(sold,pid))
+        conn.commit()
         # TODO Handle sold
         return redirect(url_for("pets.pet_info", pid=pid), 302)
-        
-    
-
-
-
